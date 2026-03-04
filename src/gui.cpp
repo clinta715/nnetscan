@@ -3,6 +3,7 @@
 #endif
 
 #include "gui.h"
+#include "portscan.h"
 
 #include <winsock2.h>
 #include <ws2tcpip.h>
@@ -68,35 +69,47 @@ bool MainWindow::create() {
     return true;
 }
 
+static void SetControlFont(HWND hCtrl, HFONT hFont) {
+    SendMessageA(hCtrl, WM_SETFONT, (WPARAM)hFont, TRUE);
+}
+
 void MainWindow::createControls(HWND parent) {
     HWND hLabel1 = CreateWindowA("STATIC", "Network Interface:",
         WS_CHILD | WS_VISIBLE, 20, 20, 120, 20, parent, nullptr, nullptr, nullptr);
+    SetControlFont(hLabel1, hFont_);
     
     hComboInterface_ = CreateWindowA("COMBOBOX", "",
         WS_CHILD | WS_VISIBLE | CBS_DROPDOWNLIST | WS_VSCROLL,
         140, 18, 500, 300, parent, nullptr, nullptr, nullptr);
+    SetControlFont(hComboInterface_, hFont_);
     
     HWND hLabelSubnet = CreateWindowA("STATIC", "Subnet (CIDR):",
         WS_CHILD | WS_VISIBLE, 20, 55, 120, 20, parent, nullptr, nullptr, nullptr);
+    SetControlFont(hLabelSubnet, hFont_);
     
     hEditSubnet_ = CreateWindowA("EDIT", "",
         WS_CHILD | WS_VISIBLE | WS_BORDER | ES_LEFT | ES_AUTOHSCROLL,
         140, 53, 200, 20, parent, nullptr, nullptr, nullptr);
+    SetControlFont(hEditSubnet_, hFont_);
     
     HWND hLabel2 = CreateWindowA("STATIC", "Scan Methods:",
         WS_CHILD | WS_VISIBLE, 20, 90, 120, 20, parent, nullptr, nullptr, nullptr);
+    SetControlFont(hLabel2, hFont_);
     
     hChkArp_ = CreateWindowA("BUTTON", "ARP Scan",
         WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX, 140, 90, 100, 20, parent, nullptr, nullptr, nullptr);
     SendMessageA(hChkArp_, BM_SETCHECK, BST_CHECKED, 0);
+    SetControlFont(hChkArp_, hFont_);
     
     hChkIcmp_ = CreateWindowA("BUTTON", "ICMP Ping",
         WS_CHILD | WS_VISIBLE | BS_AUTOCHECKBOX, 250, 90, 100, 20, parent, nullptr, nullptr, nullptr);
     SendMessageA(hChkIcmp_, BM_SETCHECK, BST_CHECKED, 0);
+    SetControlFont(hChkIcmp_, hFont_);
     
     hBtnScan_ = CreateWindowA("BUTTON", "Start Scan",
         WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON,
         670, 18, 100, 28, parent, nullptr, nullptr, nullptr);
+    SetControlFont(hBtnScan_, hFont_);
     
     hProgress_ = CreateWindowA(PROGRESS_CLASS, "",
         WS_CHILD | WS_VISIBLE | PBS_SMOOTH,
@@ -106,32 +119,39 @@ void MainWindow::createControls(HWND parent) {
         0, WC_LISTVIEW, "",
         WS_CHILD | WS_VISIBLE | LVS_REPORT | LVS_SINGLESEL | WS_BORDER,
         20, 150, 750, 365, parent, nullptr, nullptr, nullptr);
+    ListView_SetExtendedListViewStyle(hListResults_, LVS_EX_FULLROWSELECT | LVS_EX_GRIDLINES | LVS_EX_DOUBLEBUFFER);
+    SetControlFont(hListResults_, hFont_);
     
     LVCOLUMNA col;
     col.mask = LVCF_TEXT | LVCF_WIDTH;
     
     col.pszText = (char*)"IP Address";
-    col.cx = 130;
+    col.cx = 110;
     ListView_InsertColumn(hListResults_, 0, &col);
     
-    col.pszText = (char*)"MAC Address";
+    col.pszText = (char*)"Hostname";
     col.cx = 140;
     ListView_InsertColumn(hListResults_, 1, &col);
     
-    col.pszText = (char*)"Vendor";
-    col.cx = 180;
+    col.pszText = (char*)"MAC Address";
+    col.cx = 130;
     ListView_InsertColumn(hListResults_, 2, &col);
     
-    col.pszText = (char*)"Type";
-    col.cx = 80;
+    col.pszText = (char*)"Vendor";
+    col.cx = 150;
     ListView_InsertColumn(hListResults_, 3, &col);
     
-    col.pszText = (char*)"Open Ports";
-    col.cx = 220;
+    col.pszText = (char*)"Type";
+    col.cx = 70;
     ListView_InsertColumn(hListResults_, 4, &col);
+    
+    col.pszText = (char*)"Open Ports";
+    col.cx = 180;
+    ListView_InsertColumn(hListResults_, 5, &col);
     
     hStatus_ = CreateWindowA("STATIC", "Ready",
         WS_CHILD | WS_VISIBLE, 20, 520, 750, 20, parent, nullptr, nullptr, nullptr);
+    SetControlFont(hStatus_, hFont_);
 }
 
 void MainWindow::populateInterfaces() {
@@ -193,6 +213,11 @@ LRESULT CALLBACK MainWindow::wndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM 
         g_pMainWindow = static_cast<MainWindow*>(pcs->lpCreateParams);
         g_pMainWindow->hwnd_ = hwnd;
         SetWindowLongPtrA(hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(g_pMainWindow));
+        
+        // Create modern font
+        g_pMainWindow->hFont_ = CreateFontA(16, 0, 0, 0, FW_NORMAL, FALSE, FALSE, FALSE, ANSI_CHARSET,
+            OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, CLEARTYPE_QUALITY, DEFAULT_PITCH | FF_SWISS, "Segoe UI");
+        
         g_pMainWindow->createControls(hwnd);
         g_pMainWindow->scanner_ = std::make_unique<NetworkScanner>();
         g_pMainWindow->populateInterfaces();
@@ -201,6 +226,11 @@ LRESULT CALLBACK MainWindow::wndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM 
     
     MainWindow* pThis = reinterpret_cast<MainWindow*>(GetWindowLongPtrA(hwnd, GWLP_USERDATA));
     if (pThis) {
+        if (msg == WM_DESTROY) {
+            if (pThis->hFont_) DeleteObject(pThis->hFont_);
+            PostQuitMessage(0);
+            return 0;
+        }
         return pThis->handleMessage(hwnd, msg, wParam, lParam);
     }
     
@@ -213,6 +243,10 @@ LRESULT MainWindow::handleMessage(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPa
             if (HIWORD(wParam) == BN_CLICKED && reinterpret_cast<HWND>(lParam) == hBtnScan_) {
                 if (!scanning_) {
                     startScan();
+                } else {
+                    scanner_->stopScan();
+                    SendMessageA(hBtnScan_, WM_SETTEXT, 0, reinterpret_cast<LPARAM>("Stopping..."));
+                    EnableWindow(hBtnScan_, FALSE);
                 }
             } else if (HIWORD(wParam) == CBN_SELCHANGE && reinterpret_cast<HWND>(lParam) == hComboInterface_) {
                 onInterfaceChange();
@@ -246,7 +280,7 @@ void MainWindow::startScan() {
     }
     
     scanning_ = true;
-    EnableWindow(hBtnScan_, FALSE);
+    SendMessageA(hBtnScan_, WM_SETTEXT, 0, reinterpret_cast<LPARAM>("Stop Scan"));
     SendMessageA(hStatus_, WM_SETTEXT, 0, reinterpret_cast<LPARAM>("Scanning..."));
     ListView_DeleteAllItems(hListResults_);
     SendMessageA(hProgress_, PBM_SETPOS, 0, 0);
@@ -275,6 +309,7 @@ void MainWindow::startScan() {
         SendMessageA(hStatus_, WM_SETTEXT, 0, reinterpret_cast<LPARAM>("Scan complete"));
         
         scanning_ = false;
+        SendMessageA(hBtnScan_, WM_SETTEXT, 0, reinterpret_cast<LPARAM>("Start Scan"));
         EnableWindow(hBtnScan_, TRUE);
     }).detach();
 }
@@ -296,25 +331,35 @@ void MainWindow::addResult(const HostInfo& host) {
     item.iSubItem = 0;
     ListView_InsertItem(hListResults_, &item);
     
-    item.pszText = const_cast<char*>(host.macAddress.empty() ? "-" : host.macAddress.c_str());
+    item.pszText = const_cast<char*>(host.hostname.empty() ? "-" : host.hostname.c_str());
     item.iSubItem = 1;
     ListView_SetItem(hListResults_, &item);
     
-    item.pszText = const_cast<char*>(host.vendor.empty() ? "-" : host.vendor.c_str());
+    item.pszText = const_cast<char*>(host.macAddress.empty() ? "-" : host.macAddress.c_str());
     item.iSubItem = 2;
+    ListView_SetItem(hListResults_, &item);
+    
+    item.pszText = const_cast<char*>(host.vendor.empty() ? "-" : host.vendor.c_str());
+    item.iSubItem = 3;
     ListView_SetItem(hListResults_, &item);
     
     std::string type = host.isGateway ? "Gateway" : "Host";
     item.pszText = const_cast<char*>(type.c_str());
-    item.iSubItem = 3;
+    item.iSubItem = 4;
     ListView_SetItem(hListResults_, &item);
     
     std::string ports;
     for (size_t i = 0; i < host.openPorts.size(); ++i) {
         if (i > 0) ports += ", ";
         ports += std::to_string(host.openPorts[i]);
+        const char* service = getPortServiceName(host.openPorts[i]);
+        if (strcmp(service, "Unknown") != 0) {
+            ports += " (";
+            ports += service;
+            ports += ")";
+        }
     }
     item.pszText = const_cast<char*>(ports.empty() ? "-" : ports.c_str());
-    item.iSubItem = 4;
+    item.iSubItem = 5;
     ListView_SetItem(hListResults_, &item);
 }

@@ -106,11 +106,28 @@ bool pingHost(const std::string& ip, int timeoutMs) {
     return result > 0;
 }
 
+static std::string lookupHostname(const std::string& ip) {
+    struct sockaddr_in sa;
+    sa.sin_family = AF_INET;
+    sa.sin_addr.s_addr = inet_addr(ip.c_str());
+    
+    char hostname[NI_MAXHOST];
+    if (getnameinfo((struct sockaddr*)&sa, sizeof(sa), hostname, NI_MAXHOST, nullptr, 0, NI_NAMEREQD) == 0) {
+        return hostname;
+    }
+    return "";
+}
+
+void NetworkScanner::stopScan() {
+    cancelScan_ = true;
+}
+
 std::vector<HostInfo> NetworkScanner::scanNetwork(const NetworkInterface& iface, 
                                                      bool useArp, bool useIcmp,
                                                      std::function<void(int, int)> progressCallback,
                                                      std::function<void(const HostInfo&)> hostCallback,
                                                      const std::string& customSubnet) {
+    cancelScan_ = false;
     std::vector<HostInfo> results;
     
     uint32_t network, mask, broadcast;
@@ -162,6 +179,7 @@ std::vector<HostInfo> NetworkScanner::scanNetwork(const NetworkInterface& iface,
             if (endHost > broadcast) endHost = broadcast;
             
             for (uint32_t hostIp = startHost; hostIp < endHost; ++hostIp) {
+                if (cancelScan_) break;
                 if (hostIp == selfIp) continue;
                 
                 HostInfo info;
@@ -213,6 +231,7 @@ std::vector<HostInfo> NetworkScanner::scanNetwork(const NetworkInterface& iface,
                 }
                 
                 if (info.isReachable) {
+                    info.hostname = lookupHostname(info.ipAddress);
                     info.openPorts = scanPortsConcurrent(info.ipAddress, commonPorts, 300, 20);
                     
                     {
@@ -220,13 +239,13 @@ std::vector<HostInfo> NetworkScanner::scanNetwork(const NetworkInterface& iface,
                         results.push_back(info);
                     }
                     
-                    if (hostCallback) {
+                    if (hostCallback && !cancelScan_) {
                         hostCallback(info);
                     }
                 }
                 
                 int current = ++scanned;
-                if (progressCallback) {
+                if (progressCallback && !cancelScan_) {
                     progressCallback(current, totalHosts);
                 }
             }

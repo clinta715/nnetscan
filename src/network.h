@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <memory>
 #include <functional>
+#include <atomic>
 
 struct NetworkInterface {
     std::string name;
@@ -17,6 +18,7 @@ struct NetworkInterface {
 
 struct HostInfo {
     std::string ipAddress;
+    std::string hostname;
     std::string macAddress;
     std::string vendor;
     bool isReachable;
@@ -34,8 +36,10 @@ public:
                                       std::function<void(int, int)> progressCallback,
                                       std::function<void(const HostInfo&)> hostCallback = nullptr,
                                       const std::string& customSubnet = "");
+    void stopScan();
     std::vector<int> scanPorts(const std::string& ip, const std::vector<int>& ports);
 
 private:
     bool initialized_;
+    std::atomic<bool> cancelScan_{false};
 };

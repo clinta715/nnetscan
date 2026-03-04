@@ -48,6 +48,7 @@ private:
     HWND hProgress_;
     HWND hStatus_;
 
+    HFONT hFont_;
     std::mutex uiMutex_;
     std::vector<NetworkInterface> interfaces_;
     std::unique_ptr<NetworkScanner> scanner_;
