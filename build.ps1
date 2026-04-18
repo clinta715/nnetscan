@@ -47,7 +47,7 @@ $linkFlags = @(
     "comctl32.lib",
     "user32.lib",
     "gdi32.lib",
-    "/SUBSYSTEM:WINDOWS",
+    "/SUBSYSTEM:CONSOLE",
     "/OPT:REF",
     "/OPT:ICF",
     "/LTCG"
@@ -55,6 +55,7 @@ $linkFlags = @(
 
 $sourceFiles = @(
     "src\main.cpp",
+    "src\cli.cpp",
     "src\network.cpp",
     "src\arp.cpp",
     "src\portscan.cpp",

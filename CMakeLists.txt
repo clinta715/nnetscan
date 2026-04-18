@@ -10,8 +10,10 @@ if(WIN32)
     add_definitions(-DWINVER=0x0601)
 endif()
 
-add_executable(nnetscan WIN32
+add_executable(nnetscan
     src/main.cpp
+    src/cli.cpp
+    src/cli.h
     src/network.cpp
     src/network.h
     src/arp.cpp
@@ -26,7 +28,7 @@ add_executable(nnetscan WIN32
 
 target_link_libraries(nnetscan PRIVATE iphlpapi ws2_32)
 target_compile_options(nnetscan PRIVATE /W4 /WX- /MT)
-target_link_options(nnetscan PRIVATE /SUBSYSTEM:WINDOWS /ENTRY:WinMainCRTStartup)
+target_link_options(nnetscan PRIVATE /SUBSYSTEM:CONSOLE)
 
 if(CMAKE_BUILD_TYPE STREQUAL "Release")
     target_link_options(nnetscan PRIVATE /LTCG /OPT:REF /OPT:ICF)
